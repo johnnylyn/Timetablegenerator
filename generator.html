@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Timetable Generator</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#20402f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Timetable Generator">
+<style>
+  :root{
+    --ink:#1c2b22; --paper:#f7f5ef; --slate:#5c6d61; --line:#d8d2c2;
+    --green:#2f5d46; --green-dark:#20402f; --amber:#c98a2c; --red:#a4402f;
+    --card:#ffffff; --free:#eef0e8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  header{background:var(--green-dark);color:var(--paper);padding:16px 16px 14px;
+    border-bottom:4px solid var(--amber);position:sticky;top:0;z-index:5;}
+  header h1{margin:0;font-size:1.25rem;}
+  header p{margin:3px 0 0;font-size:.78rem;color:#cfe0d3;}
+  nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--card);
+    border-bottom:1px solid var(--line);position:sticky;top:62px;z-index:5;}
+  nav button{flex:none;font-size:.8rem;font-weight:600;padding:8px 12px;border-radius:20px;
+    border:1px solid var(--line);background:var(--paper);color:var(--slate);cursor:pointer;white-space:nowrap;}
+  nav button.active{background:var(--green);border-color:var(--green);color:#fff;}
+  main{max-width:900px;margin:0 auto;padding:16px 12px 60px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  h2{font-size:1.05rem;margin:0 0 4px;}
+  .sub{font-size:.82rem;color:var(--slate);margin:0 0 14px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--slate);
+    padding:6px 6px;border-bottom:1px solid var(--line);}
+  td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  input[type=text],input[type=number],input[type=time],select{
+    width:100%;font-size:.85rem;padding:6px 7px;border-radius:6px;border:1px solid var(--line);
+    background:#fff;color:var(--ink);font-family:inherit;}
+  input[type=checkbox]{width:16px;height:16px;}
+  .row-actions button{background:none;border:none;cursor:pointer;font-size:1rem;padding:2px 6px;}
+  .btn{font-size:.82rem;font-weight:600;padding:8px 14px;border-radius:7px;border:1px solid var(--green);
+    background:var(--green);color:#fff;cursor:pointer;}
+  .btn.secondary{background:var(--paper);color:var(--green-dark);}
+  .btn.danger{background:var(--paper);color:var(--red);border-color:var(--red);}
+  .btn.small{padding:5px 10px;font-size:.76rem;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .add-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+  .add-row > *{flex:1;min-width:100px;}
+  .pill{display:inline-block;font-size:.68rem;background:var(--free);border:1px solid var(--line);
+    border-radius:10px;padding:1px 7px;color:var(--slate);margin-left:6px;}
+  .class-select-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+  .class-select-bar select{flex:1;min-width:140px;}
+  .curr-block{margin-bottom:18px;}
+  .curr-block h3{font-size:.9rem;margin:0 0 6px;color:var(--green-dark);}
+  .day-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;}
+  .day-tabs button{font-size:.78rem;padding:6px 12px;border-radius:16px;border:1px solid var(--line);
+    background:var(--paper);color:var(--slate);cursor:pointer;white-space:nowrap;}
+  .day-tabs button.active{background:var(--amber);border-color:var(--amber);color:#2a1c05;font-weight:700;}
+  .grid-row{display:grid;grid-template-columns:60px 1fr auto;gap:8px;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-left:5px solid var(--green);
+    border-radius:8px;padding:9px 11px;margin-bottom:6px;cursor:pointer;}
+  .grid-row.free{border-left-color:var(--line);background:var(--free);}
+  .grid-row.conflict{border-left-color:var(--red);box-shadow:0 0 0 2px rgba(164,64,47,.3);}
+  .grid-row .p-time{font-size:.72rem;color:var(--slate);}
+  .grid-row .p-time b{display:block;font-size:.85rem;color:var(--ink);}
+  .grid-row .p-subj{font-size:.95rem;}
+  .grid-row .p-teacher{font-size:.75rem;color:var(--green-dark);text-align:right;}
+  .break-row{text-align:center;font-size:.7rem;color:var(--slate);padding:2px 0;}
+  .editor{background:var(--card);border:2px solid var(--amber);border-radius:8px;padding:10px;
+    margin-bottom:6px;display:grid;gap:6px;}
+  .editor .actions{display:flex;gap:6px;justify-content:flex-end;}
+  .warn{font-size:.8rem;background:#fbeee7;border:1px solid var(--amber);border-radius:8px;
+    padding:10px 12px;margin-bottom:12px;color:#6b4416;}
+  .empty{font-size:.85rem;color:var(--slate);text-align:center;padding:20px;}
+  footer{max-width:900px;margin:0 auto;padding:6px 14px 40px;font-size:.74rem;color:var(--slate);line-height:1.5;}
+  #fileImport{display:none;}
+  #printArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{display:block;position:absolute;left:0;top:0;width:100%;padding:10px;}
+    #printArea .print-title{font-size:16px;font-weight:700;margin-bottom:12px;color:#20402f;}
+    #printArea .print-class{page-break-after:always;margin-bottom:16px;}
+    #printArea .print-class:last-child{page-break-after:auto;}
+    #printArea h3{font-size:13px;margin:0 0 6px;color:#20402f;}
+    #printArea table{width:100%;border-collapse:collapse;}
+    #printArea th, #printArea td{border:1px solid #999;padding:4px 5px;font-size:10px;text-align:center;}
+    #printArea small{color:#555;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Timetable Generator</h1>
+  <p>Set up teachers, subjects &amp; classes, then auto-generate — fully editable afterward.</p>
+</header>
+
+<nav id="tabs">
+  <button data-tab="teachers" class="active">Teachers</button>
+  <button data-tab="subjects">Subjects</button>
+  <button data-tab="classes">Classes</button>
+  <button data-tab="periods">Periods &amp; Breaks</button>
+  <button data-tab="availability">Availability</button>
+  <button data-tab="curriculum">Curriculum</button>
+  <button data-tab="generate">Generate &amp; Edit</button>
+  <button data-tab="teacherview">Teacher View</button>
+  <button data-tab="data">Data</button>
+</nav>
+
+<main>
+
+  <!-- TEACHERS -->
+  <div class="panel active" id="panel-teachers">
+    <h2>Teachers</h2>
+    <p class="sub">Add, rename, or remove teachers. IDs are used elsewhere to assign subjects — editable, but keep them unique.</p>
+    <div class="card">
+      <table id="teachersTable"><thead><tr><th style="width:70px">ID</th><th>Name</th><th style="width:40px"></th></tr></thead><tbody></tbody></table>
+      <div class="add-row">
+        <input type="text" id="newTeacherId" placeholder="ID (e.g. 38)">
+        <input type="text" id="newTeacherName" placeholder="Teacher name">
+        <button class="btn small" id="addTeacherBtn">Add teacher</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBJECTS -->
+  <div class="panel" id="panel-subjects">
+    <h2>Subjects</h2>
+    <p class="sub">Mark a subject "double period" if two of its weekly periods should sit back-to-back in one unbroken block.</p>
+    <div class="card">
+      <table id="subjectsTable"><thead><tr><th>Subject</th><th style="width:90px">Double?</th><th style="width:40px"></th></tr></thead><tbody></tbody></table>
+      <div class="add-row">
+        <input type="text" id="newSubjectName" placeholder="Subject name">
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;flex:0;white-space:nowrap;">
+          <input type="checkbox" id="newSubjectDouble"> Double
+        </label>
+        <button class="btn small" id="addSubjectBtn">Add subject</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLASSES -->
+  <div class="panel" id="panel-classes">
+    <h2>Classes</h2>
+    <p class="sub">Add or remove classes / arms. "Pds/wk" and "Free" reflect what's set up in Curriculum against the total weekly slots (active days × periods).</p>
+    <div class="card">
+      <table id="classesTable"><thead><tr><th>Class</th><th style="width:80px">Pds/wk</th><th style="width:90px">Free</th><th style="width:40px"></th></tr></thead><tbody></tbody></table>
+      <div class="add-row">
+        <input type="text" id="newClassName" placeholder="Class name (e.g. SS 1C)">
+        <button class="btn small" id="addClassBtn">Add class</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERIODS -->
+  <div class="panel" id="panel-periods">
+    <h2>Days &amp; Periods</h2>
+    <p class="sub">Choose active days and edit period times. Breaks split the day into blocks — a "double period" can only be placed inside one block.</p>
+    <div class="card">
+      <h3 style="font-size:.85rem;margin:0 0 8px;">Active days</h3>
+      <div id="daysList" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:.85rem;margin:0 0 8px;">Periods</h3>
+      <table id="periodsTable"><thead><tr><th style="width:36px">#</th><th>Start</th><th>End</th><th style="width:40px"></th></tr></thead><tbody></tbody></table>
+      <button class="btn small secondary" id="addPeriodBtn" style="margin-top:8px;">Add period</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:.85rem;margin:0 0 8px;">Breaks</h3>
+      <table id="breaksTable"><thead><tr><th>After period</th><th>Label</th><th>Start</th><th>End</th><th style="width:40px"></th></tr></thead><tbody></tbody></table>
+      <button class="btn small secondary" id="addBreakBtn" style="margin-top:8px;">Add break</button>
+    </div>
+  </div>
+
+  <!-- AVAILABILITY -->
+  <div class="panel" id="panel-availability">
+    <h2>Teacher Availability</h2>
+    <p class="sub">Mark any day, or any specific period, a teacher can't teach. The generator will never place them there; existing cells that break this get flagged on the Generate &amp; Edit tab.</p>
+    <div class="class-select-bar">
+      <select id="availTeacherSelect"></select>
+    </div>
+    <div class="day-tabs" id="availDayTabs"></div>
+    <div class="toolbar">
+      <button class="btn small secondary" id="markDayOffBtn">Mark this whole day unavailable</button>
+      <button class="btn small secondary" id="markDayOnBtn">Mark this whole day available</button>
+    </div>
+    <div id="availGrid"></div>
+  </div>
+
+  <!-- CURRICULUM -->
+  <div class="panel" id="panel-curriculum">
+    <h2>Curriculum</h2>
+    <p class="sub">For each class: which subjects, how many periods a week, and which teacher. This is what the generator schedules.</p>
+    <div class="class-select-bar">
+      <select id="curriculumClassSelect"></select>
+    </div>
+    <div class="card" id="curriculumCard"></div>
+  </div>
+
+  <!-- GENERATE -->
+  <div class="panel" id="panel-generate">
+    <h2>Generate &amp; Edit</h2>
+    <p class="sub">Auto-places every curriculum session, then you can click any cell to override it manually.</p>
+    <div class="toolbar">
+      <button class="btn" id="generateBtn">Generate timetable</button>
+      <button class="btn secondary" id="clearTimetableBtn">Clear timetable</button>
+    </div>
+    <div id="generateWarnings"></div>
+    <div class="class-select-bar">
+      <select id="viewClassSelect"></select>
+    </div>
+    <div class="day-tabs" id="genDayTabs"></div>
+    <div id="genSchedule"></div>
+  </div>
+
+  <!-- TEACHER VIEW -->
+  <div class="panel" id="panel-teacherview">
+    <h2>Teacher View</h2>
+    <p class="sub">Read-only weekly view per teacher, computed from the generated timetable.</p>
+    <div class="class-select-bar">
+      <select id="teacherViewSelect"></select>
+    </div>
+    <div id="teacherSchedule"></div>
+  </div>
+
+  <!-- DATA -->
+  <div class="panel" id="panel-data">
+    <h2>Data</h2>
+    <p class="sub">Everything autosaves in this browser. Use export/import to move your setup to another device or keep a backup.</p>
+    <div class="card">
+      <h3 style="font-size:.85rem;margin:0 0 8px;">Timetable exports</h3>
+      <div class="toolbar">
+        <button class="btn secondary" id="exportCsvBtn">Export as CSV (Excel)</button>
+        <button class="btn secondary" id="printPdfBtn">Print / Save as PDF</button>
+      </div>
+      <p class="sub" style="margin:8px 0 0;">CSV opens straight in Excel/Sheets, one row per period. PDF uses your browser's print dialog — choose "Save as PDF" as the destination instead of a physical printer.</p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:.85rem;margin:0 0 8px;">Full setup backup</h3>
+      <div class="toolbar">
+        <button class="btn secondary" id="exportBtn">Export as JSON</button>
+        <button class="btn secondary" id="importBtn">Import JSON</button>
+        <input type="file" id="fileImport" accept="application/json">
+      </div>
+      <div class="toolbar">
+        <button class="btn secondary" id="renameTeachersBtn">Update teacher names (IDs 1–37)</button>
+      </div>
+      <p class="sub" style="margin:8px 0 0;">Renames teachers whose ID matches 1–37 to the current placeholder names, in place — your curriculum, availability, and generated timetable are untouched since they're linked by ID, not name.</p>
+      <div class="toolbar" style="margin-top:10px;">
+        <button class="btn secondary" id="loadStarterBtn">Load FCC starter data (full reset)</button>
+        <button class="btn danger" id="wipeBtn">Clear everything</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="printArea"></div>
+
+<footer>
+  The generator uses a randomized backtracking placer: it respects "no teacher in two places at once", "one appearance of a subject per class per day" (except the two halves of a double), and "a double period must sit in one unbroken block". It also nudges free periods away from period 1–2 where possible. It's a strong first pass, not a guarantee of a perfect fit — check the warnings list after generating, and adjust any cell by hand.
+</footer>
+
+<script>
+/* ============================= STATE ============================= */
+const LS_KEY = "fcc_timetable_generator_v1";
+let state = null;
+
+function defaultState(){
+  return {
+    teachers: [],
+    subjects: [],
+    classes: [],
+    days: [
+      {name:"Monday", active:true}, {name:"Tuesday", active:true}, {name:"Wednesday", active:true},
+      {name:"Thursday", active:true}, {name:"Friday", active:true}
+    ],
+    periods: [
+      {start:"8:00", end:"8:40"}, {start:"8:40", end:"9:20"}, {start:"9:20", end:"10:00"},
+      {start:"10:30", end:"11:10"}, {start:"11:10", end:"11:50"}, {start:"11:50", end:"12:30"},
+      {start:"12:40", end:"1:20"}, {start:"1:20", end:"2:00"}
+    ],
+    breaks: [
+      {afterPeriod:2, label:"Long Break", start:"10:00", end:"10:30"},
+      {afterPeriod:5, label:"Short Break", start:"12:30", end:"12:40"}
+    ],
+    curriculum: {},   // className -> [{subject, teacherId, periodsPerWeek}]
+    timetable: {}     // day -> className -> [ {subject,teacherId} | null ... ]
+  };
+}
+
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function load(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw){ try{ state = JSON.parse(raw); ensureTeachersShape(); return; }catch(e){} }
+  state = defaultState();
+  loadStarterData();
+}
+
+/* ============================= STARTER DATA ============================= */
+const PLACEHOLDER_TEACHER_NAMES = [
+  [1,"James Carter"],[2,"Sophie Bennett"],[3,"Michael Turner"],[4,"Olivia Parker"],[5,"Daniel Foster"],
+  [6,"Emily Hayes"],[7,"Thomas Reed"],[8,"Charlotte Wells"],[9,"Benjamin Cross"],[10,"Grace Sutton"],
+  [11,"William Hart"],[12,"Amelia Grant"],[13,"Henry Dawson"],[14,"Isabella Pierce"],[15,"Jack Morrison"],
+  [16,"Hannah Fletcher"],[17,"Samuel Barnes"],[18,"Lily Marsh"],[19,"Edward Nolan"],[20,"Ava Sinclair"],
+  [21,"George Whitfield"],[22,"Ruby Holloway"],[23,"Joseph Lambert"],[24,"Ella Winters"],[25,"Alexander Doyle"],
+  [26,"Chloe Bishop"],[27,"Christopher Vance"],[28,"Millie Harding"],[29,"Oliver Blake"],[30,"Poppy Ashford"],
+  [31,"Nathan Priestley"],[32,"Freya Chapman"],[33,"Andrew Sheldon"],[34,"Zoe Carlton"],
+  [35,"Patrick Goodwin"],[36,"Rosie Fenwick"],[37,"Simon Radcliffe"]
+];
+
+function loadStarterData(){
+  state.teachers = PLACEHOLDER_TEACHER_NAMES.map(([id,name])=>({id:String(id), name, unavailable:[]}));
+
+  const doubleSubjects = new Set(["Maths 1","English 1","Biology","Physics","Chemistry","Lit in Eng"]);
+  const allSubjectNames = ["Maths 1","Maths 2","English 1","English 2","History","PHE","Dig.Tec","CCA",
+    "Interm.Sc","SCS","CRS","LSF","B.Stud","Civic Edu","Agric","B.Tec","B.Sci","H.Econs","Comp",
+    "Soc Stud","F.Maths 1","Biology","Geo","Physics","Chemistry","CPH","CHS","Lit in Eng","Comm",
+    "Econs","Govt","Acct","MKT"];
+  state.subjects = allSubjectNames.map(name=>({name, double:doubleSubjects.has(name)}));
+
+  state.classes = ["JSS 1A","JSS 1B","JSS 1C","JSS 2A","JSS 2B","JSS 2C","JSS 3A","JSS 3B","JSS 3C","JSS 3D",
+    "SS 1A1","SS 1A2","SS 1B","SS 2A1","SS 2A2","SS 2B","SS 3A","SS 3B"];
+
+  const jss12 = {"Maths 1":3,"Maths 2":2,"English 1":3,"English 2":2,"History":3,"PHE":3,"Dig.Tec":3,
+    "CCA":3,"Interm.Sc":3,"SCS":3,"CRS":3,"LSF":3,"B.Stud":3};
+  const jss3 = {"Maths 1":3,"Maths 2":2,"English 1":3,"English 2":2,"Civic Edu":2,"Agric":2,"B.Tec":2,
+    "B.Sci":2,"CCA":3,"B.Stud":3,"H.Econs":2,"PHE":2,"Comp":2,"History":3,"CRS":3,"Soc Stud":2};
+  const scienceSS = {"Maths 1":3,"Maths 2":2,"English 1":3,"English 2":2,"Agric":3,"F.Maths 1":2,
+    "Biology":4,"Geo":3,"Dig.Tec":3,"Physics":4,"Chemistry":4,"CPH":3,"CHS":3};
+  const artsSS = {"Lit in Eng":3,"Comm":3,"CRS":3,"Econs":3,"Govt":3,"Acct":3,"Maths 1":3,"Maths 2":2,
+    "English 1":3,"English 2":2,"CHS":3,"CPH":3,"Dig.Tec":3};
+  const ss3a = {"Maths 1":3,"Maths 2":2,"English 1":3,"English 2":2,"Agric":3,"F.Maths 1":2,"Biology":4,
+    "Geo":3,"Dig.Tec":3,"Physics":4,"Chemistry":4,"Civic Edu":3,"MKT":3};
+  const ss3b = {"Lit in Eng":3,"Comm":3,"CRS":3,"Econs":3,"Govt":3,"Acct":3,"Maths 1":3,"Maths 2":2,
+    "English 1":3,"English 2":2,"MKT":3,"Civic Edu":3};
+
+  const templateFor = {
+    "JSS 1A":jss12,"JSS 1B":jss12,"JSS 1C":jss12,"JSS 2A":jss12,"JSS 2B":jss12,"JSS 2C":jss12,
+    "JSS 3A":jss3,"JSS 3B":jss3,"JSS 3C":jss3,"JSS 3D":jss3,
+    "SS 1A1":scienceSS,"SS 1A2":scienceSS,"SS 2A1":scienceSS,"SS 2A2":scienceSS,
+    "SS 1B":artsSS,"SS 2B":artsSS,"SS 3A":ss3a,"SS 3B":ss3b
+  };
+
+  state.curriculum = {};
+  state.classes.forEach(cls=>{
+    const tpl = templateFor[cls] || {};
+    state.curriculum[cls] = Object.entries(tpl).map(([subject,pw])=>({subject, teacherId:"", periodsPerWeek:pw}));
+  });
+
+  state.timetable = {};
+  save();
+}
+
+/* ============================= UTIL ============================= */
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function activeDays(){ return state.days.filter(d=>d.active).map(d=>d.name); }
+function periodCount(){ return state.periods.length; }
+function computeBlocks(){
+  const breakAfter = new Set(state.breaks.map(b=>b.afterPeriod));
+  const blocks = []; let cur = [0];
+  for(let i=1;i<periodCount();i++){
+    if(breakAfter.has(i)) { blocks.push(cur); cur=[i]; }
+    else cur.push(i);
+  }
+  blocks.push(cur);
+  return blocks;
+}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
+function teacherName(id){
+  if(!id) return "";
+  const t = state.teachers.find(t=>t.id===String(id));
+  return t ? t.name : `#${id}`;
+}
+function ensureTeachersShape(){
+  state.teachers.forEach(t=>{ if(!Array.isArray(t.unavailable)) t.unavailable = []; });
+}
+function isTeacherUnavailable(teacherId, day, periodIdx){
+  if(!teacherId) return false;
+  const t = state.teachers.find(t=>t.id===String(teacherId));
+  if(!t || !t.unavailable) return false;
+  return t.unavailable.includes(`${day}#${periodIdx}`);
+}
+function classWorkload(cls){
+  const rows = state.curriculum[cls] || [];
+  return rows.reduce((sum,r)=> sum + (Number(r.periodsPerWeek)||0), 0);
+}
+function totalWeeklySlots(){
+  return activeDays().length * periodCount();
+}
+function ensureTimetableShape(){
+  const days = activeDays();
+  days.forEach(day=>{
+    if(!state.timetable[day]) state.timetable[day] = {};
+    state.classes.forEach(cls=>{
+      if(!state.timetable[day][cls] || state.timetable[day][cls].length !== periodCount()){
+        state.timetable[day][cls] = new Array(periodCount()).fill(null);
+      }
+    });
+  });
+}
+
+/* ============================= TABS ============================= */
+document.getElementById('tabs').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-tab]');
+  if(!btn) return;
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  renderAll();
+});
+
+/* ============================= TEACHERS TAB ============================= */
+function renderTeachers(){
+  const tbody = document.querySelector('#teachersTable tbody');
+  tbody.innerHTML = "";
+  state.teachers.forEach((t,idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${escAttr(t.id)}" data-field="id" data-idx="${idx}"></td>
+      <td><input type="text" value="${escAttr(t.name)}" data-field="name" data-idx="${idx}"></td>
+      <td class="row-actions"><button data-remove="${idx}" title="Remove">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = Number(inp.dataset.idx);
+      state.teachers[idx][inp.dataset.field] = inp.value.trim();
+      save(); renderDependentSelects();
+    });
+  });
+  tbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.teachers.splice(Number(btn.dataset.remove),1);
+      save(); renderTeachers(); renderDependentSelects();
+    });
+  });
+}
+document.getElementById('addTeacherBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('newTeacherId').value.trim() || uid();
+  const name = document.getElementById('newTeacherName').value.trim();
+  if(!name) return;
+  state.teachers.push({id, name, unavailable:[]});
+  document.getElementById('newTeacherId').value="";
+  document.getElementById('newTeacherName').value="";
+  save(); renderTeachers(); renderDependentSelects();
+});
+
+/* ============================= SUBJECTS TAB ============================= */
+function renderSubjects(){
+  const tbody = document.querySelector('#subjectsTable tbody');
+  tbody.innerHTML = "";
+  state.subjects.forEach((s,idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${escAttr(s.name)}" data-field="name" data-idx="${idx}"></td>
+      <td style="text-align:center"><input type="checkbox" ${s.double?'checked':''} data-field="double" data-idx="${idx}"></td>
+      <td class="row-actions"><button data-remove="${idx}" title="Remove">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input[type=text]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      state.subjects[Number(inp.dataset.idx)].name = inp.value.trim();
+      save(); renderDependentSelects();
+    });
+  });
+  tbody.querySelectorAll('input[type=checkbox]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      state.subjects[Number(inp.dataset.idx)].double = inp.checked;
+      save();
+    });
+  });
+  tbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.subjects.splice(Number(btn.dataset.remove),1);
+      save(); renderSubjects(); renderDependentSelects();
+    });
+  });
+}
+document.getElementById('addSubjectBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('newSubjectName').value.trim();
+  if(!name) return;
+  const double = document.getElementById('newSubjectDouble').checked;
+  state.subjects.push({name, double});
+  document.getElementById('newSubjectName').value="";
+  document.getElementById('newSubjectDouble').checked=false;
+  save(); renderSubjects(); renderDependentSelects();
+});
+
+/* ============================= CLASSES TAB ============================= */
+function renderClasses(){
+  const tbody = document.querySelector('#classesTable tbody');
+  tbody.innerHTML = "";
+  const totalSlots = totalWeeklySlots();
+  state.classes.forEach((c,idx)=>{
+    const assigned = classWorkload(c);
+    const free = totalSlots - assigned;
+    const overFull = free < 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${escAttr(c)}" data-idx="${idx}"></td>
+      <td style="text-align:center;white-space:nowrap;">${assigned} / ${totalSlots}</td>
+      <td style="text-align:center;white-space:nowrap;${overFull?'color:var(--red);font-weight:700;':''}">${overFull? 'over by '+(-free) : free+' free'}</td>
+      <td class="row-actions"><button data-remove="${idx}" title="Remove">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = Number(inp.dataset.idx);
+      const oldName = state.classes[idx];
+      const newName = inp.value.trim();
+      if(!newName) return;
+      state.classes[idx] = newName;
+      if(state.curriculum[oldName]){ state.curriculum[newName]=state.curriculum[oldName]; delete state.curriculum[oldName]; }
+      Object.values(state.timetable).forEach(dayObj=>{
+        if(dayObj[oldName]){ dayObj[newName]=dayObj[oldName]; delete dayObj[oldName]; }
+      });
+      save(); renderClasses(); renderDependentSelects();
+    });
+  });
+  tbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = Number(btn.dataset.remove);
+      const name = state.classes[idx];
+      state.classes.splice(idx,1);
+      delete state.curriculum[name];
+      Object.values(state.timetable).forEach(dayObj=>{ delete dayObj[name]; });
+      save(); renderClasses(); renderDependentSelects();
+    });
+  });
+}
+document.getElementById('addClassBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('newClassName').value.trim();
+  if(!name || state.classes.includes(name)) return;
+  state.classes.push(name);
+  state.curriculum[name] = [];
+  document.getElementById('newClassName').value="";
+  save(); renderClasses(); renderDependentSelects();
+});
+
+/* ============================= PERIODS TAB ============================= */
+function renderPeriodsTab(){
+  const daysList = document.getElementById('daysList');
+  daysList.innerHTML = "";
+  state.days.forEach((d,idx)=>{
+    const label = document.createElement('label');
+    label.style.cssText = "display:flex;align-items:center;gap:5px;font-size:.85rem;";
+    label.innerHTML = `<input type="checkbox" ${d.active?'checked':''} data-idx="${idx}"> ${d.name}`;
+    label.querySelector('input').addEventListener('change', e=>{
+      state.days[idx].active = e.target.checked;
+      save(); ensureTimetableShape();
+      renderAvailabilityGrid(); renderGenerateSelects(); renderGenerateGrid(); renderTeacherView();
+    });
+    daysList.appendChild(label);
+  });
+
+  const ptbody = document.querySelector('#periodsTable tbody');
+  ptbody.innerHTML = "";
+  state.periods.forEach((p,idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>P${idx+1}</td>
+      <td><input type="text" value="${escAttr(p.start)}" data-field="start" data-idx="${idx}"></td>
+      <td><input type="text" value="${escAttr(p.end)}" data-field="end" data-idx="${idx}"></td>
+      <td class="row-actions"><button data-remove="${idx}" title="Remove">✕</button></td>`;
+    ptbody.appendChild(tr);
+  });
+  ptbody.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      state.periods[Number(inp.dataset.idx)][inp.dataset.field] = inp.value.trim();
+      save();
+    });
+  });
+  ptbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.periods.splice(Number(btn.dataset.remove),1);
+      state.breaks = state.breaks.filter(b=>b.afterPeriod < state.periods.length);
+      save(); renderPeriodsTab(); ensureTimetableShape();
+      renderAvailabilityGrid(); renderGenerateSelects(); renderGenerateGrid();
+    });
+  });
+
+  const btbody = document.querySelector('#breaksTable tbody');
+  btbody.innerHTML = "";
+  state.breaks.forEach((b,idx)=>{
+    const tr = document.createElement('tr');
+    let opts = "";
+    for(let i=1;i<=state.periods.length;i++) opts += `<option value="${i}" ${b.afterPeriod===i?'selected':''}>P${i}</option>`;
+    tr.innerHTML = `
+      <td><select data-field="afterPeriod" data-idx="${idx}">${opts}</select></td>
+      <td><input type="text" value="${escAttr(b.label)}" data-field="label" data-idx="${idx}"></td>
+      <td><input type="text" value="${escAttr(b.start)}" data-field="start" data-idx="${idx}"></td>
+      <td><input type="text" value="${escAttr(b.end)}" data-field="end" data-idx="${idx}"></td>
+      <td class="row-actions"><button data-remove="${idx}" title="Remove">✕</button></td>`;
+    btbody.appendChild(tr);
+  });
+  btbody.querySelectorAll('select,input').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const idx = Number(el.dataset.idx), field = el.dataset.field;
+      state.breaks[idx][field] = field==='afterPeriod' ? Number(el.value) : el.value.trim();
+      save();
+    });
+  });
+  btbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.breaks.splice(Number(btn.dataset.remove),1);
+      save(); renderPeriodsTab();
+    });
+  });
+}
+document.getElementById('addPeriodBtn').addEventListener('click', ()=>{
+  state.periods.push({start:"", end:""});
+  save(); renderPeriodsTab(); ensureTimetableShape();
+  renderAvailabilityGrid(); renderGenerateSelects(); renderGenerateGrid();
+});
+document.getElementById('addBreakBtn').addEventListener('click', ()=>{
+  state.breaks.push({afterPeriod:1, label:"Break", start:"", end:""});
+  save(); renderPeriodsTab();
+});
+
+/* ============================= AVAILABILITY TAB ============================= */
+let availState = { teacherId:null, day:null };
+
+function renderAvailabilitySelect(){
+  ensureTeachersShape();
+  const sel = document.getElementById('availTeacherSelect');
+  const prev = sel.value;
+  sel.innerHTML = state.teachers.map(t=>`<option value="${escAttr(t.id)}">${t.name} (#${t.id})</option>`).join("");
+  if(state.teachers.some(t=>t.id===prev)) sel.value = prev;
+  availState.teacherId = sel.value || (state.teachers[0] && state.teachers[0].id) || null;
+}
+document.getElementById('availTeacherSelect').addEventListener('change', e=>{
+  availState.teacherId = e.target.value; renderAvailabilityGrid();
+});
+
+function renderAvailabilityDayTabs(){
+  const tabsEl = document.getElementById('availDayTabs');
+  tabsEl.innerHTML = "";
+  const days = activeDays();
+  if(!availState.day || !days.includes(availState.day)) availState.day = days[0];
+  days.forEach(day=>{
+    const b = document.createElement('button');
+    b.textContent = day.slice(0,3);
+    if(day===availState.day) b.classList.add('active');
+    b.addEventListener('click', ()=>{ availState.day = day; renderAvailabilityGrid(); });
+    tabsEl.appendChild(b);
+  });
+}
+
+function renderAvailabilityGrid(){
+  ensureTeachersShape();
+  renderAvailabilityDayTabs();
+  const el = document.getElementById('availGrid');
+  el.innerHTML = "";
+  const teacher = state.teachers.find(t=>t.id===availState.teacherId);
+  if(!teacher){ el.innerHTML = '<div class="empty">Add a teacher first.</div>'; return; }
+  const day = availState.day;
+  if(!day){ el.innerHTML = '<div class="empty">Turn on at least one day under Periods &amp; Breaks.</div>'; return; }
+  const breakAfter = {}; state.breaks.forEach(b=> breakAfter[b.afterPeriod]=b);
+
+  for(let i=0;i<periodCount();i++){
+    const key = `${day}#${i}`;
+    const blocked = teacher.unavailable.includes(key);
+    const row = document.createElement('div');
+    row.className = 'grid-row' + (blocked ? ' conflict' : '');
+    const p = state.periods[i] || {start:'',end:''};
+    row.innerHTML = `
+      <div class="p-time"><b>P${i+1}</b>${p.start}–${p.end}</div>
+      <div class="p-subj">${blocked ? '<span style="color:var(--red);font-weight:600;">Unavailable</span>' : '<span style="color:var(--slate);">Available</span>'}</div>
+      <div class="p-teacher">${blocked ? 'Tap to allow' : 'Tap to block'}</div>
+    `;
+    row.addEventListener('click', ()=>{
+      const idx = teacher.unavailable.indexOf(key);
+      if(idx>=0) teacher.unavailable.splice(idx,1); else teacher.unavailable.push(key);
+      save(); renderAvailabilityGrid();
+    });
+    el.appendChild(row);
+    if(breakAfter[i+1]){
+      const b = document.createElement('div');
+      b.className = 'break-row';
+      b.textContent = `${breakAfter[i+1].label} · ${breakAfter[i+1].start}–${breakAfter[i+1].end}`;
+      el.appendChild(b);
+    }
+  }
+}
+
+document.getElementById('markDayOffBtn').addEventListener('click', ()=>{
+  const teacher = state.teachers.find(t=>t.id===availState.teacherId);
+  if(!teacher || !availState.day) return;
+  for(let i=0;i<periodCount();i++){
+    const key = `${availState.day}#${i}`;
+    if(!teacher.unavailable.includes(key)) teacher.unavailable.push(key);
+  }
+  save(); renderAvailabilityGrid();
+});
+document.getElementById('markDayOnBtn').addEventListener('click', ()=>{
+  const teacher = state.teachers.find(t=>t.id===availState.teacherId);
+  if(!teacher || !availState.day) return;
+  teacher.unavailable = teacher.unavailable.filter(k=>!k.startsWith(`${availState.day}#`));
+  save(); renderAvailabilityGrid();
+});
+
+/* ============================= CURRICULUM TAB ============================= */
+function renderCurriculumSelect(){
+  const sel = document.getElementById('curriculumClassSelect');
+  const prev = sel.value;
+  sel.innerHTML = state.classes.map(c=>`<option value="${escAttr(c)}">${c}</option>`).join("");
+  if(state.classes.includes(prev)) sel.value = prev;
+}
+document.getElementById('curriculumClassSelect').addEventListener('change', renderCurriculumCard);
+
+function renderCurriculumCard(){
+  const cls = document.getElementById('curriculumClassSelect').value;
+  const card = document.getElementById('curriculumCard');
+  if(!cls){ card.innerHTML = '<div class="empty">Add a class first.</div>'; return; }
+  if(!state.curriculum[cls]) state.curriculum[cls] = [];
+  const rows = state.curriculum[cls];
+
+  let subjOpts = state.subjects.map(s=>`<option value="${escAttr(s.name)}">${s.name}${s.double?' (double)':''}</option>`).join("");
+  let teacherOpts = `<option value="">— choose —</option>` + state.teachers.map(t=>`<option value="${escAttr(t.id)}">${t.name} (#${t.id})</option>`).join("");
+
+  const assigned = classWorkload(cls);
+  const totalSlots = totalWeeklySlots();
+  const free = totalSlots - assigned;
+  const summaryColor = free < 0 ? 'var(--red)' : 'var(--green-dark)';
+  const summaryText = free < 0 ? `${assigned} / ${totalSlots} assigned — over by ${-free}` : `${assigned} / ${totalSlots} assigned — ${free} free`;
+  let html = `<div style="font-size:.85rem;font-weight:700;color:${summaryColor};margin-bottom:10px;">Weekly workload: ${summaryText}</div>`;
+  html += `<table><thead><tr><th>Subject</th><th>Teacher</th><th style="width:70px">Pds/wk</th><th style="width:40px"></th></tr></thead><tbody>`;
+  rows.forEach((row,idx)=>{
+    html += `<tr>
+      <td><select data-field="subject" data-idx="${idx}">${subjOpts.replace(`value="${escAttr(row.subject)}"`, `value="${escAttr(row.subject)}" selected`)}</select></td>
+      <td><select data-field="teacherId" data-idx="${idx}">${teacherOpts.replace(`value="${escAttr(row.teacherId)}"`, `value="${escAttr(row.teacherId)}" selected`)}</select></td>
+      <td><input type="number" min="0" max="20" value="${row.periodsPerWeek}" data-field="periodsPerWeek" data-idx="${idx}"></td>
+      <td class="row-actions"><button data-remove="${idx}">✕</button></td>
+    </tr>`;
+  });
+  html += `</tbody></table>
+    <div class="add-row">
+      <select id="curNewSubject">${subjOpts}</select>
+      <select id="curNewTeacher">${teacherOpts}</select>
+      <input type="number" id="curNewPw" value="3" min="0" max="20" style="max-width:80px;">
+      <button class="btn small" id="curAddRowBtn">Add</button>
+    </div>`;
+  card.innerHTML = html;
+
+  card.querySelectorAll('select[data-field],input[data-field]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const idx = Number(el.dataset.idx), field = el.dataset.field;
+      rows[idx][field] = field==='periodsPerWeek' ? Number(el.value) : el.value;
+      save();
+    });
+  });
+  card.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      rows.splice(Number(btn.dataset.remove),1);
+      save(); renderCurriculumCard();
+    });
+  });
+  document.getElementById('curAddRowBtn').addEventListener('click', ()=>{
+    const subject = document.getElementById('curNewSubject').value;
+    const teacherId = document.getElementById('curNewTeacher').value;
+    const pw = Number(document.getElementById('curNewPw').value) || 0;
+    if(!subject) return;
+    rows.push({subject, teacherId, periodsPerWeek:pw});
+    save(); renderCurriculumCard();
+  });
+}
+
+/* ============================= GENERATE / EDIT TAB ============================= */
+let genState = { cls:null, day:null };
+
+function renderGenerateSelects(){
+  const sel = document.getElementById('viewClassSelect');
+  const prev = sel.value;
+  sel.innerHTML = state.classes.map(c=>`<option value="${escAttr(c)}">${c}</option>`).join("");
+  if(state.classes.includes(prev)) sel.value = prev;
+  genState.cls = sel.value || state.classes[0] || null;
+
+  const tabsEl = document.getElementById('genDayTabs');
+  tabsEl.innerHTML = "";
+  const days = activeDays();
+  if(!genState.day || !days.includes(genState.day)) genState.day = days[0];
+  days.forEach(day=>{
+    const b = document.createElement('button');
+    b.textContent = day.slice(0,3);
+    if(day===genState.day) b.classList.add('active');
+    b.addEventListener('click', ()=>{ genState.day = day; renderGenerateGrid(); });
+    tabsEl.appendChild(b);
+  });
+}
+document.getElementById('viewClassSelect').addEventListener('change', e=>{
+  genState.cls = e.target.value; renderGenerateGrid();
+});
+
+function findTeacherConflicts(){
+  // returns Set of "day#period#class" keys where the same teacher is double-booked
+  const busy = {}; // day#period -> [{cls, teacherId}]
+  const conflicts = new Set();
+  activeDays().forEach(day=>{
+    state.classes.forEach(cls=>{
+      const grid = state.timetable[day] && state.timetable[day][cls];
+      if(!grid) return;
+      grid.forEach((slot,p)=>{
+        if(!slot || !slot.teacherId) return;
+        const key = `${day}#${p}`;
+        if(!busy[key]) busy[key]=[];
+        busy[key].push({cls, teacherId:slot.teacherId});
+        if(isTeacherUnavailable(slot.teacherId, day, p)) conflicts.add(`${key}#${cls}`);
+      });
+    });
+  });
+  Object.entries(busy).forEach(([key, arr])=>{
+    const byTeacher = {};
+    arr.forEach(x=>{ (byTeacher[x.teacherId] = byTeacher[x.teacherId]||[]).push(x.cls); });
+    Object.entries(byTeacher).forEach(([tid, classes])=>{
+      if(classes.length>1) classes.forEach(cls=> conflicts.add(`${key}#${cls}`));
+    });
+  });
+  return conflicts;
+}
+
+function renderGenerateGrid(){
+  ensureTimetableShape();
+  const el = document.getElementById('genSchedule');
+  el.innerHTML = "";
+  document.querySelectorAll('#genDayTabs button').forEach(b=>{
+    b.classList.toggle('active', b.textContent === genState.day.slice(0,3));
+  });
+  if(!genState.cls){ el.innerHTML = '<div class="empty">Add a class first.</div>'; return; }
+  const grid = state.timetable[genState.day][genState.cls] || new Array(periodCount()).fill(null);
+  const conflicts = findTeacherConflicts();
+  const breakAfter = {}; state.breaks.forEach(b=> breakAfter[b.afterPeriod]=b);
+
+  for(let i=0;i<periodCount();i++){
+    const slot = grid[i];
+    const row = document.createElement('div');
+    const conflictKey = `${genState.day}#${i}#${genState.cls}`;
+    row.className = 'grid-row' + (!slot?' free':'') + (conflicts.has(conflictKey)?' conflict':'');
+    const p = state.periods[i] || {start:'',end:''};
+    row.innerHTML = `
+      <div class="p-time"><b>P${i+1}</b>${p.start}–${p.end}</div>
+      <div class="p-subj">${slot ? escHtml(slot.subject) : '<span style="color:var(--slate);font-style:italic;">Free</span>'}</div>
+      <div class="p-teacher">${slot ? escHtml(teacherName(slot.teacherId)) : ''}${conflicts.has(conflictKey)?' ⚠':''}</div>
+    `;
+    row.addEventListener('click', ()=> openCellEditor(i));
+    el.appendChild(row);
+    if(breakAfter[i+1]){
+      const b = document.createElement('div');
+      b.className = 'break-row';
+      b.textContent = `${breakAfter[i+1].label} · ${breakAfter[i+1].start}–${breakAfter[i+1].end}`;
+      el.appendChild(b);
+    }
+  }
+}
+
+function openCellEditor(periodIdx){
+  const el = document.getElementById('genSchedule');
+  const grid = state.timetable[genState.day][genState.cls];
+  const current = grid[periodIdx];
+  const editor = document.createElement('div');
+  editor.className = 'editor';
+  let subjOpts = `<option value="">— free —</option>` + state.subjects.map(s=>`<option value="${escAttr(s.name)}" ${current&&current.subject===s.name?'selected':''}>${s.name}</option>`).join("");
+  let teacherOpts = `<option value="">— none —</option>` + state.teachers.map(t=>{
+    const flag = isTeacherUnavailable(t.id, genState.day, periodIdx) ? ' ⚠ unavailable' : '';
+    return `<option value="${escAttr(t.id)}" ${current&&String(current.teacherId)===t.id?'selected':''}>${t.name} (#${t.id})${flag}</option>`;
+  }).join("");
+  editor.innerHTML = `
+    <div><label style="font-size:.75rem;color:var(--slate);">Subject</label><select id="editSubj">${subjOpts}</select></div>
+    <div><label style="font-size:.75rem;color:var(--slate);">Teacher</label><select id="editTeacher">${teacherOpts}</select></div>
+    <div class="actions">
+      <button class="btn small secondary" id="editCancel">Cancel</button>
+      <button class="btn small" id="editSave">Save</button>
+    </div>`;
+  // insert editor before the row it replaces visually: simplest is to re-render list then insert at position
+  renderGenerateGrid();
+  const rows = el.querySelectorAll('.grid-row');
+  rows[periodIdx].replaceWith(editor);
+
+  editor.querySelector('#editCancel').addEventListener('click', renderGenerateGrid);
+  editor.querySelector('#editSave').addEventListener('click', ()=>{
+    const subj = editor.querySelector('#editSubj').value;
+    const teacherId = editor.querySelector('#editTeacher').value;
+    grid[periodIdx] = subj ? {subject:subj, teacherId} : null;
+    save(); renderGenerateGrid();
+  });
+}
+
+document.getElementById('clearTimetableBtn').addEventListener('click', ()=>{
+  if(!confirm("Clear the entire generated timetable? Curriculum settings are kept.")) return;
+  state.timetable = {};
+  ensureTimetableShape();
+  save(); renderGenerateGrid(); renderWarnings([]);
+});
+
+/* ============================= GENERATION ALGORITHM ============================= */
+function buildUnitsForClass(cls){
+  const rows = state.curriculum[cls] || [];
+  const units = [];
+  rows.forEach(row=>{
+    const subj = state.subjects.find(s=>s.name===row.subject);
+    const isDouble = subj && subj.double;
+    let pw = row.periodsPerWeek || 0;
+    if(isDouble && pw>=2){
+      const doubles = Math.floor(pw/2), singles = pw%2;
+      for(let i=0;i<doubles;i++) units.push({subject:row.subject, teacherId:row.teacherId, double:true});
+      for(let i=0;i<singles;i++) units.push({subject:row.subject, teacherId:row.teacherId, double:false});
+    } else {
+      for(let i=0;i<pw;i++) units.push({subject:row.subject, teacherId:row.teacherId, double:false});
+    }
+  });
+  return units;
+}
+
+function generateTimetable(){
+  ensureTimetableShape();
+  const days = activeDays();
+  const blocks = computeBlocks();
+  const pCount = periodCount();
+
+  // reset grids
+  days.forEach(day=>{ state.classes.forEach(cls=>{ state.timetable[day][cls] = new Array(pCount).fill(null); }); });
+
+  const teacherBusy = {}; // "day#period" -> Set(teacherId)
+  const addBusy = (k,id)=>{ if(!id) return; if(!teacherBusy[k]) teacherBusy[k]=new Set(); teacherBusy[k].add(id); };
+  const removeBusy = (k,id)=>{ if(!id||!teacherBusy[k]) return; teacherBusy[k].delete(id); };
+  const isBusy = (k,id)=>{
+    if(!id) return false;
+    if(teacherBusy[k] && teacherBusy[k].has(id)) return true;
+    const hashIdx = k.indexOf('#');
+    const day = k.slice(0,hashIdx), p = Number(k.slice(hashIdx+1));
+    return isTeacherUnavailable(id, day, p);
+  };
+
+  const unplacedAll = [];
+  const classOrder = shuffle(state.classes.slice()).sort((a,b)=> buildUnitsForClass(b).length - buildUnitsForClass(a).length);
+
+  classOrder.forEach(cls=>{
+    const grid = state.timetable; // days->cls->array (using outer state.timetable directly)
+    let units = shuffle(buildUnitsForClass(cls));
+    units.sort((a,b)=> (b.double?1:0) - (a.double?1:0)); // doubles first
+
+    const daySubj = {}; days.forEach(d=> daySubj[d]=new Set());
+    let steps = 0; const MAX_STEPS = 25000;
+
+    function backtrack(idx){
+      if(idx===units.length) return true;
+      steps++; if(steps>MAX_STEPS) return false;
+      const unit = units[idx];
+      for(const day of shuffle(days.slice())){
+        if(daySubj[day].has(unit.subject)) continue;
+        if(unit.double){
+          for(const block of shuffle(blocks.slice())){
+            for(let i=0;i<block.length-1;i++){
+              const p1=block[i], p2=block[i+1];
+              if(grid[day][cls][p1] || grid[day][cls][p2]) continue;
+              const k1=`${day}#${p1}`, k2=`${day}#${p2}`;
+              if(isBusy(k1,unit.teacherId) || isBusy(k2,unit.teacherId)) continue;
+              grid[day][cls][p1] = {subject:unit.subject, teacherId:unit.teacherId};
+              grid[day][cls][p2] = {subject:unit.subject, teacherId:unit.teacherId};
+              daySubj[day].add(unit.subject);
+              addBusy(k1,unit.teacherId); addBusy(k2,unit.teacherId);
+              if(backtrack(idx+1)) return true;
+              grid[day][cls][p1]=null; grid[day][cls][p2]=null;
+              daySubj[day].delete(unit.subject);
+              removeBusy(k1,unit.teacherId); removeBusy(k2,unit.teacherId);
+            }
+          }
+        } else {
+          const periodOrder = shuffle(Array.from({length:pCount}, (_,i)=>i));
+          for(const p of periodOrder){
+            if(grid[day][cls][p]) continue;
+            const k = `${day}#${p}`;
+            if(isBusy(k,unit.teacherId)) continue;
+            grid[day][cls][p] = {subject:unit.subject, teacherId:unit.teacherId};
+            daySubj[day].add(unit.subject);
+            addBusy(k,unit.teacherId);
+            if(backtrack(idx+1)) return true;
+            grid[day][cls][p]=null;
+            daySubj[day].delete(unit.subject);
+            removeBusy(k,unit.teacherId);
+          }
+        }
+      }
+      return false;
+    }
+
+    const ok = backtrack(0);
+    if(!ok){
+      // relaxed fallback: place whatever still fits, ignoring the one-per-day rule, report the rest unplaced
+      units.forEach(unit=>{
+        let placed=false;
+        if(unit.double){
+          outer:
+          for(const day of days){
+            for(const block of blocks){
+              for(let i=0;i<block.length-1 && !placed;i++){
+                const p1=block[i], p2=block[i+1];
+                if(grid[day][cls][p1]||grid[day][cls][p2]) continue;
+                const k1=`${day}#${p1}`, k2=`${day}#${p2}`;
+                if(isBusy(k1,unit.teacherId)||isBusy(k2,unit.teacherId)) continue;
+                grid[day][cls][p1]={subject:unit.subject,teacherId:unit.teacherId};
+                grid[day][cls][p2]={subject:unit.subject,teacherId:unit.teacherId};
+                addBusy(k1,unit.teacherId); addBusy(k2,unit.teacherId);
+                placed=true; break outer;
+              }
+            }
+          }
+        } else {
+          outer2:
+          for(const day of days){
+            for(let p=0;p<pCount;p++){
+              if(grid[day][cls][p]) continue;
+              const k=`${day}#${p}`;
+              if(isBusy(k,unit.teacherId)) continue;
+              grid[day][cls][p]={subject:unit.subject,teacherId:unit.teacherId};
+              addBusy(k,unit.teacherId);
+              placed=true; break outer2;
+            }
+          }
+        }
+        if(!placed) unplacedAll.push(`${cls}: ${unit.subject}${unit.double?' (double)':''}`);
+      });
+    }
+
+    // repair pass: push free periods out of slot 1/2 where a same-day swap is safe
+    days.forEach(day=>{
+      for(const freeIdx of [0,1]){
+        if(grid[day][cls][freeIdx]) continue;
+        for(let p=2;p<pCount;p++){
+          const occ = grid[day][cls][p];
+          if(!occ) continue;
+          const kOld = `${day}#${p}`, kNew = `${day}#${freeIdx}`;
+          if(isBusy(kNew, occ.teacherId)) continue; // teacher already busy elsewhere at that time
+          grid[day][cls][freeIdx] = occ;
+          grid[day][cls][p] = null;
+          removeBusy(kOld, occ.teacherId); addBusy(kNew, occ.teacherId);
+          break;
+        }
+      }
+    });
+  });
+
+  save();
+  renderGenerateGrid();
+  renderWarnings(unplacedAll);
+  renderTeacherView();
+}
+document.getElementById('generateBtn').addEventListener('click', ()=>{
+  generateTimetable();
+});
+
+function renderWarnings(list){
+  const el = document.getElementById('generateWarnings');
+  if(!list || list.length===0){ el.innerHTML=""; return; }
+  el.innerHTML = `<div class="warn"><b>${list.length} session(s) couldn't be auto-placed</b> — the week is too full to fit them under the standard rules. Add them by hand from the grid below, or free up space (fewer periods/week, more active days, or fewer subjects for that class):<br><br>${list.map(escHtml).join('<br>')}</div>`;
+}
+
+/* ============================= TEACHER VIEW TAB ============================= */
+function renderTeacherViewSelect(){
+  const sel = document.getElementById('teacherViewSelect');
+  const prev = sel.value;
+  sel.innerHTML = state.teachers.map(t=>`<option value="${escAttr(t.id)}">${t.name} (#${t.id})</option>`).join("");
+  if(state.teachers.some(t=>t.id===prev)) sel.value = prev;
+}
+document.getElementById('teacherViewSelect').addEventListener('change', renderTeacherView);
+
+function renderTeacherView(){
+  ensureTimetableShape();
+  const sel = document.getElementById('teacherViewSelect');
+  const teacherId = sel.value;
+  const el = document.getElementById('teacherSchedule');
+  el.innerHTML = "";
+  if(!teacherId){ el.innerHTML = '<div class="empty">Add a teacher first.</div>'; return; }
+  let any=false;
+  activeDays().forEach(day=>{
+    const rows=[];
+    state.classes.forEach(cls=>{
+      const grid = state.timetable[day][cls] || [];
+      grid.forEach((slot,p)=>{ if(slot && String(slot.teacherId)===teacherId) rows.push({cls,subject:slot.subject,p}); });
+    });
+    if(rows.length===0) return;
+    any=true;
+    const h = document.createElement('div');
+    h.style.cssText="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green-dark);margin:12px 0 6px;";
+    h.textContent = day;
+    el.appendChild(h);
+    rows.sort((a,b)=>a.p-b.p).forEach(r=>{
+      const p = state.periods[r.p]||{start:'',end:''};
+      const row = document.createElement('div');
+      row.className = 'grid-row';
+      row.style.cursor='default';
+      row.innerHTML = `<div class="p-time"><b>P${r.p+1}</b>${p.start}–${p.end}</div><div class="p-subj">${escHtml(r.subject)}</div><div class="p-teacher">${escHtml(r.cls)}</div>`;
+      el.appendChild(row);
+    });
+  });
+  if(!any) el.innerHTML = '<div class="empty">No sessions scheduled yet for this teacher — generate a timetable first.</div>';
+}
+
+/* ============================= DATA TAB ============================= */
+function csvEscape(v){
+  v = String(v==null ? '' : v);
+  if(/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+  return v;
+}
+document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+  ensureTimetableShape();
+  const rows = [["Day","Period","Start","End","Class","Subject","Teacher"]];
+  activeDays().forEach(day=>{
+    state.classes.forEach(cls=>{
+      const grid = state.timetable[day][cls] || [];
+      grid.forEach((slot,i)=>{
+        const p = state.periods[i] || {start:'',end:''};
+        rows.push([day, `P${i+1}`, p.start, p.end, cls, slot?slot.subject:'', slot?teacherName(slot.teacherId):'']);
+      });
+    });
+  });
+  const csv = rows.map(r=> r.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'timetable.csv';
+  a.click();
+});
+
+function buildPrintView(){
+  ensureTimetableShape();
+  const days = activeDays();
+  const container = document.getElementById('printArea');
+  container.innerHTML = "";
+  const title = document.createElement('div');
+  title.className = 'print-title';
+  title.textContent = `Timetable (generated ${new Date().toLocaleDateString()})`;
+  container.appendChild(title);
+
+  state.classes.forEach(cls=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'print-class';
+    const h = document.createElement('h3');
+    h.textContent = cls;
+    wrap.appendChild(h);
+    const table = document.createElement('table');
+    let thead = '<thead><tr><th>Period</th>' + days.map(d=>`<th>${escHtml(d)}</th>`).join('') + '</tr></thead>';
+    let tbody = '<tbody>';
+    for(let i=0;i<periodCount();i++){
+      const p = state.periods[i] || {start:'',end:''};
+      tbody += `<tr><td>P${i+1}<br><small>${escHtml(p.start)}-${escHtml(p.end)}</small></td>`;
+      days.forEach(day=>{
+        const slot = state.timetable[day][cls][i];
+        tbody += `<td>${slot ? escHtml(slot.subject)+'<br><small>'+escHtml(teacherName(slot.teacherId))+'</small>' : ''}</td>`;
+      });
+      tbody += '</tr>';
+    }
+    tbody += '</tbody>';
+    table.innerHTML = thead + tbody;
+    wrap.appendChild(table);
+    container.appendChild(wrap);
+  });
+}
+document.getElementById('printPdfBtn').addEventListener('click', ()=>{
+  buildPrintView();
+  window.print();
+});
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'timetable-data.json';
+  a.click();
+});
+document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('fileImport').click());
+document.getElementById('fileImport').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      state = parsed; ensureTeachersShape(); save(); renderAll();
+      alert('Data imported.');
+    }catch(err){ alert('Could not read that file as valid JSON.'); }
+  };
+  reader.readAsText(file);
+});
+document.getElementById('renameTeachersBtn').addEventListener('click', ()=>{
+  let renamed = 0;
+  PLACEHOLDER_TEACHER_NAMES.forEach(([id,name])=>{
+    const t = state.teachers.find(t=>t.id===String(id));
+    if(t && t.name !== name){ t.name = name; renamed++; }
+  });
+  save(); renderAll();
+  alert(renamed>0 ? `Updated ${renamed} teacher name(s). Everything else was left as-is.` : "No matching teacher IDs (1–37) found to rename.");
+});
+document.getElementById('loadStarterBtn').addEventListener('click', ()=>{
+  if(!confirm("Replace current data with the FCC 2026/2027 starter set (teachers, classes, and curriculum periods/week)? This wipes your current setup — export a backup first if you want to keep it.")) return;
+  loadStarterData(); renderAll();
+});
+document.getElementById('wipeBtn').addEventListener('click', ()=>{
+  if(!confirm("This clears everything — teachers, subjects, classes, curriculum, and the generated timetable. Continue?")) return;
+  state = defaultState(); save(); renderAll();
+});
+
+/* ============================= HELPERS ============================= */
+function escHtml(str){ return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escAttr(str){ return escHtml(str); }
+
+/* ============================= RENDER ALL ============================= */
+function renderDependentSelects(){
+  renderAvailabilitySelect(); renderAvailabilityGrid();
+  renderCurriculumSelect(); renderCurriculumCard();
+  renderGenerateSelects(); renderGenerateGrid();
+  renderTeacherViewSelect(); renderTeacherView();
+}
+function renderAll(){
+  ensureTeachersShape();
+  renderTeachers(); renderSubjects(); renderClasses(); renderPeriodsTab();
+  renderAvailabilitySelect(); renderAvailabilityGrid();
+  renderCurriculumSelect(); renderCurriculumCard();
+  ensureTimetableShape();
+  renderGenerateSelects(); renderGenerateGrid();
+  renderTeacherViewSelect(); renderTeacherView();
+}
+
+/* ============================= INIT ============================= */
+load();
+ensureTimetableShape();
+renderAll();
+
+/* ============================= PWA: SERVICE WORKER ============================= */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline-safe: ignore if unavailable */ });
+  });
+}
+</script>
+</body>
+</html>
